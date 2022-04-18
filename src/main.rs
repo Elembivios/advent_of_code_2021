@@ -6,6 +6,7 @@ mod day_05;
 mod day_06;
 mod day_07;
 mod day_08;
+mod day_09;
 
 use std::{error::Error, fs};
 use structopt::StructOpt;
@@ -87,6 +88,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         6 => Solution::new::<day_06::Lanternfish>(content),
         7 => Solution::new::<day_07::TheThreacheryOfWhales>(content),
         8 => Solution::new::<day_08::SevenSegmentSearch>(content),
+        9 => Solution::new::<day_09::SmokeBasin>(content),
         _ => unreachable!(),
     };
 
