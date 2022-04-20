@@ -1,87 +1,109 @@
 
 pub struct SmokeBasin {
-    map: Vec<Vec<u8>>,
+    map: Vec<Coordinate>,
     height: usize,
     width: usize
 }
 
+#[derive(Debug)]
+pub struct Coordinate {
+    val: u8,
+    x: usize,
+    y: usize
+}
+
+impl PartialEq for Coordinate {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+}
+
 impl SmokeBasin {
-    fn neighbours(&self, x: usize, y: usize) -> Vec<&u8> {
-        let mut neighbours: Vec<&u8> = Vec::new();
-        if x > 0 {
-            neighbours.push(&self.map[y][x-1]);
+    fn get_coordinate_ref(&self, x: usize, y: usize) -> &Coordinate {
+        return &self.map[self.width * y + x];
+    }
+
+    fn neighbours(&self, c: &Coordinate) -> Vec<&Coordinate> {
+        let mut neighbours: Vec<&Coordinate> = Vec::new();
+        if c.x > 0 {
+            neighbours.push(self.get_coordinate_ref(c.x - 1, c.y));
         }
-        if x < self.width - 1 {
-            neighbours.push(&self.map[y][x+1]);
+        if c.x < self.width - 1 {
+            neighbours.push(self.get_coordinate_ref(c.x + 1, c.y));
         }
-        if y > 0 {
-            neighbours.push(&self.map[y-1][x]);
+        if c.y > 0 {
+            neighbours.push(self.get_coordinate_ref(c.x, c.y - 1));
         }
-        if y < self.height - 1 {
-            neighbours.push(&self.map[y + 1][x]);
+        if c.y < self.height - 1 {
+            neighbours.push(self.get_coordinate_ref(c.x, c.y + 1));
         }
         neighbours
     }    
 
-    fn low_points(&self) -> Vec<&u8> {
-        self.map.iter().enumerate().flat_map(|r| {
-            let (y, line) = r;
-            line.iter().enumerate().filter(move | p| {
-                let (x, value) = p;
-                let neighbours = self.neighbours(*x, y);
+    fn low_points(&self) -> Vec<&Coordinate> {
+        self.map
+            .iter()
+            .filter(|&c| {
                 // No neighbour is larger than current point
-                neighbours.iter().filter(|n| n <= &value).count() == 0
-            }).map(|(_, value)| {
-                value
-            })
-        }).collect()
-    }
-    
-    fn basins(&self) -> () {
-        let low_points: Vec<(usize, usize, &u8)> = self.map.iter().enumerate().flat_map(|r| {
-            let (y, line) = r;
-            line.iter().enumerate().filter(move | p| {
-                let (x, value) = p;
-                let neighbours = self.neighbours(*x, y);
-                // No neighbour is larger than current point
-                neighbours.iter().filter(|n| n <= &value).count() == 0
-            }).map(move |(x, value)| {
-                (x, y, value)
-            })
-        }).collect();
-        println!("Low points: {:?}", low_points);
-
-        
-
+                self.neighbours(c).iter().filter(|n| n.val <= c.val).count() == 0
+            }).collect()
     }
 
+    fn basin(&self, c: &Coordinate) -> Vec<&Coordinate> {
+        let mut basin: Vec<&Coordinate> = vec![self.get_coordinate_ref(c.x, c.y)];
+        let mut outer_coordinates = basin.clone();
+        while outer_coordinates.len() != 0 {
+            let mut new_outer_coordinates: Vec<&Coordinate> = vec![];
+            outer_coordinates.iter().for_each(|outer| {
+                self.neighbours(outer).iter().filter(|n| {
+                    n.val != 9 && !basin.contains(n)
+                }).for_each(|n| {
+                    if !new_outer_coordinates.contains(n) {
+                        new_outer_coordinates.push(n);
+                    }                    
+                });
+            });            
+            outer_coordinates = new_outer_coordinates;
+            outer_coordinates.iter().for_each(|c| { basin.push(c)});
+        }
+        basin
+    }    
 }
 
 impl crate::Advent for SmokeBasin {
-    fn new(data: &str) -> SmokeBasin {        
-        let map: Vec<Vec<u8>> = data
-            .lines()
-            .map(|line| {
+    fn new(data: &str) -> SmokeBasin {      
+        let height = data.lines().count();
+        let width = data.lines().next().unwrap().chars().count();
+
+        let map: Vec<Coordinate> = data
+            .lines().enumerate()
+            .flat_map(|l| {
+                let (y, line) = l;
                 line
-                    .chars()
-                    .map(|c| c.to_digit(10).unwrap() as u8)
-                    .collect::<Vec<u8>>()                    
+                    .chars().enumerate()
+                    .map(|c| {
+                        let (x, chr) = c;                        
+                        Coordinate { x, y, val: chr.to_digit(10).unwrap() as u8 }
+                    }).collect::<Vec<Coordinate>>()                    
             })
             .collect();  
-
-        let height = map.len();
-        let width = map[0].len();
         SmokeBasin { map, height, width }
     }
  
-    fn part1(&self) -> usize {        
+    fn part1(&self) -> usize {            
         let low_points = self.low_points();
-        let sum: usize = low_points.iter().copied().map(|&v| v as usize).sum();
+        let sum: usize = low_points.iter().copied().map(|c| c.val as usize).sum();
         sum + low_points.len()
     }
     
     fn part2(&self) -> usize {
-        self.basins();
-        3
+        let low_points = self.low_points();
+        let mut basins: Vec<Vec<&Coordinate>> = low_points.iter().map(|c| self.basin(c)).collect();
+        basins.sort_unstable_by_key(|b| b.len());
+        
+        let mut result: usize = 1;
+        basins.iter().rev().take(3).for_each(|c| result *= c.len());
+
+        result
     }
 }
