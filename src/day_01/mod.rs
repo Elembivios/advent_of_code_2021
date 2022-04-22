@@ -9,7 +9,7 @@ impl crate::Advent for SonarSweep {
         }
     }
 
-    fn part1(&self) -> usize {
+    fn part1(&mut self) -> usize {
         self.data 
             .iter()
             .zip(self.data.iter().skip(1))
@@ -17,7 +17,7 @@ impl crate::Advent for SonarSweep {
             .count()
     }
 
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         self.data
             .windows(3)
             .zip(self.data.windows(3).skip(1))

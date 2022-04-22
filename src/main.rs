@@ -8,6 +8,7 @@ mod day_07;
 mod day_08;
 mod day_09;
 mod day_10;
+mod day_11;
 
 use std::{error::Error, fs};
 use structopt::StructOpt;
@@ -21,8 +22,8 @@ trait Advent {
     fn new(data: &str) -> Self
     where 
         Self: Sized;
-    fn part1(&self) -> usize;
-    fn part2(&self) -> usize;    
+    fn part1(&mut self) -> usize;
+    fn part2(&mut self) -> usize;    
 }
 
 struct Solution {
@@ -40,7 +41,7 @@ impl Solution {
         }
     }
 
-    fn get_result(&self, day: u32) {
+    fn get_result(&mut self, day: u32) {
         let (part1, time1) = get_time(|| self.event.part1());
         let (part2, time2) = get_time(|| self.event.part2());
 
@@ -80,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_context(|| format!("Could not read {} file for day {}", main_file, args.day))?;
     content = content.trim();
 
-    let solution = match args.day {
+    let mut solution = match args.day {
         1 => Solution::new::<day_01::SonarSweep>(content),
         2 => Solution::new::<day_02::Dive>(content),
         3 => Solution::new::<day_03::BinaryDiagnostic>(content),
@@ -91,6 +92,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         8 => Solution::new::<day_08::SevenSegmentSearch>(content),
         9 => Solution::new::<day_09::SmokeBasin>(content),
         10 => Solution::new::<day_10::SyntaxScoring>(content),
+        11 => Solution::new::<day_11::DumboOctopus>(content),
         _ => unreachable!(),
     };
 

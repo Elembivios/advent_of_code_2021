@@ -50,11 +50,11 @@ impl crate::Advent for HydrothermalVenture {
         HydrothermalVenture { lines }
     }
 
-    fn part1(&self) -> usize {
+    fn part1(&mut self) -> usize {
         count_overlap(self.lines.iter().filter(|l| !l.is_diagonal()))
     }
 
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         count_overlap(self.lines.iter())
     }
 }

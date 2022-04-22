@@ -44,12 +44,12 @@ impl crate::Advent for TheThreacheryOfWhales {
         TheThreacheryOfWhales { crab_positions }
     }
 
-    fn part1(&self) -> usize {
+    fn part1(&mut self) -> usize {
         let median = self.median();
         self.crab_positions.iter().map(|&p| p.abs_difference(&median)).sum()
     }
 
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         (self.mean()..)
             .take(2)
             .map(|m| {

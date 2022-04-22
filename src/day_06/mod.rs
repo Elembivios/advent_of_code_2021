@@ -28,11 +28,11 @@ impl crate::Advent for Lanternfish {
         Lanternfish { fish_by_age: RefCell::new(fish_by_age) }        
     }
 
-    fn part1(&self) -> usize {
+    fn part1(&mut self) -> usize {
         self.pass_cycles(80)
     }
 
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         // Only pass additional cycles since we already passed 80 cycles
         self.pass_cycles(256 - 80)
     }

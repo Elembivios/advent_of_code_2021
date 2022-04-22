@@ -90,13 +90,13 @@ impl crate::Advent for SmokeBasin {
         SmokeBasin { map, height, width }
     }
  
-    fn part1(&self) -> usize {            
+    fn part1(&mut self) -> usize {            
         let low_points = self.low_points();
         let sum: usize = low_points.iter().copied().map(|c| c.val as usize).sum();
         sum + low_points.len()
     }
     
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         let low_points = self.low_points();
         let mut basins: Vec<Vec<&Coordinate>> = low_points.iter().map(|c| self.basin(c)).collect();
         basins.sort_unstable_by_key(|b| b.len());

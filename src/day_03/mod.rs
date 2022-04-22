@@ -27,7 +27,7 @@ impl crate::Advent for BinaryDiagnostic {
             }
     }
 
-    fn part1(&self) -> usize {
+    fn part1(&mut self) -> usize {
         let columns_sum = self.get_columns_sum();
         let mut gamma_rating: Bin = Vec::new();
         for column_sum in columns_sum.iter() {
@@ -54,7 +54,7 @@ impl crate::Advent for BinaryDiagnostic {
         gamma * epsilon
     }
 
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         let oxygen_rating = self.get_life_support_rating_part(true);
         let co2_scrubber_rating = self.get_life_support_rating_part(false);
 

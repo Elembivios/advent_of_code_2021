@@ -78,7 +78,7 @@ impl crate::Advent for SyntaxScoring {
         SyntaxScoring { lines }
     }
 
-    fn part1(&self) -> usize {
+    fn part1(&mut self) -> usize {
         let mut illegal_chars: Vec<&char> = Vec::new();
         self.lines.iter().for_each(|line| {
             let res = self.check_corrupt(line);
@@ -93,7 +93,7 @@ impl crate::Advent for SyntaxScoring {
         }).sum()
     }
 
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         let missing_chars: Vec<Vec<char>> = self.lines.iter().filter_map(|line| {
             match self.check_corrupt(line) {
                 Ok(currently_open) => Some(currently_open),

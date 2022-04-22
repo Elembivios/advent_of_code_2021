@@ -71,7 +71,7 @@ impl crate::Advent for GiantSquid {
         GiantSquid { draw_numbers, boards }
     }    
 
-    fn part1(&self) -> usize {    
+    fn part1(&mut self) -> usize {    
         let (board, last_draw_index) = self.boards
             .iter()
             .map(|b| (b, b.last_draw_index(&self.draw_numbers)))
@@ -80,7 +80,7 @@ impl crate::Advent for GiantSquid {
         board.winning_score(&self.draw_numbers, last_draw_index)
     }
 
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         let (board, last_draw_index) = self.boards
             .iter()
             .map(|b| (b, b.last_draw_index(&self.draw_numbers)))

@@ -43,7 +43,7 @@ impl crate::Advent for Dive {
         Dive { commands }
     }
 
-    fn part1(&self) -> usize {
+    fn part1(&mut self) -> usize {
         let mut horizontal: usize = 0;
         let mut depth: usize = 0;
 
@@ -56,7 +56,7 @@ impl crate::Advent for Dive {
         (horizontal * depth) as usize
     }
 
-    fn part2(&self) -> usize {
+    fn part2(&mut self) -> usize {
         let mut horizontal = 0;
         let mut depth = 0;
         let mut aim = 0;

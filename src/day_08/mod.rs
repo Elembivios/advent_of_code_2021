@@ -120,7 +120,7 @@ impl crate::Advent for SevenSegmentSearch {
         SevenSegmentSearch { sequence, }
     }
 
-    fn part1(&self) -> usize {
+    fn part1(&mut self) -> usize {
         self.sequence
             .iter()
             .map(|d| {
@@ -139,7 +139,7 @@ impl crate::Advent for SevenSegmentSearch {
             .sum()
     }
 
-    fn part2(&self) -> usize {    
+    fn part2(&mut self) -> usize {    
 
         //     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
