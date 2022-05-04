@@ -1,10 +1,6 @@
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 
-use itertools::Itertools;
-
-const MAX_CAVES: usize = 11;
-
 pub struct PassagePassing{
     caves: Vec<Rc<Cave>>
 }
@@ -14,13 +10,12 @@ struct Cave {
     value: String,
     connected: RefCell<Vec<Weak<Cave>>>,
     small: bool,
-    stack: Vec<Rc<Cave>>
 }
 
 impl Cave {
     fn new(value: String) -> Cave {
         let small: bool = value.chars().any(|c| c.is_ascii_lowercase());
-        Cave { value, connected: RefCell::new(Vec::new()), small, stack: vec![] }
+        Cave { value, connected: RefCell::new(Vec::new()), small }
     }
 }
 impl PartialEq<Cave> for Cave {
@@ -41,46 +36,6 @@ impl PartialEq<Cave> for String {
     }
 }
 
-// impl PartialEq<String> for Cave {
-//     fn eq(&self, other: &String) -> bool {
-//         self.value == *other
-//     }
-// }
-
-// impl PartialEq<Cave> for Cave {
-//     fn eq(&self, other: &Cave) -> bool {
-//         self.value == other.value
-//     }
-// }
-
-// impl Eq for Cave {}k
-
-// struct CaveTraversal<'a> {
-//     stack: Vec<&'a Cave>
-// }
-
-// impl<'a> CaveTraversal<'a> {
-//     pub fn new(root: &'a Cave) -> Self {
-//         CaveTraversal { stack: vec![root] }
-//     }
-// }
-
-
-impl Iterator for Cave {
-    type Item = Rc<Cave>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(node) = self.stack.pop() {
-            for neighbour in node.connected.borrow().clone() {
-                if let Some(cave) = neighbour.upgrade() {
-                    self.stack.push(Rc::clone(&cave));
-                }
-            }
-            return Some(node);
-        }
-        return None;
-    }
-}
 
 struct CaveTraversal {
     stack: Vec<Rc<Cave>>,
@@ -91,36 +46,66 @@ impl CaveTraversal {
     pub fn new(root:Rc<Cave>) -> Self {
         CaveTraversal { stack: vec![root], checked: vec![0] }
     }
+
+    // Returns the next unchecked neighbour from the last cave in the stack
+    fn inner_next(&mut self) -> (Option<Rc<Cave>>, usize) {      
+        let index = self.stack.len() - 1;
+        
+        let current_cave = &self.stack[index];
+        let current_checked: usize = self.checked[index];
+        let mut skipped: usize = 0;
+        let connected = current_cave.connected.borrow();
+        
+        for cave in connected.iter().skip(current_checked) {
+            let neighbour = cave.upgrade().unwrap();
+            if neighbour.small && self.stack.contains(&neighbour) {
+                skipped += 1;
+            } else {
+                return (Some(Rc::clone(&neighbour)), skipped);
+            }
+        }
+        (None, skipped)
+    }
+
+    // Walks backward till it finds a cave that not all neighbours were checked
+    fn move_to_unchecked(&mut self) -> () {
+        let mut current_index = self.stack.len() - 1;
+        while self.checked[current_index] >= self.stack[current_index].connected.borrow().len() {
+            self.stack.pop();
+            self.checked.pop();
+            if current_index == 0 {
+                break;
+            }
+            current_index -= 1;            
+        }
+    }
 }
 
 impl Iterator for CaveTraversal {
     type Item = Vec<Rc<Cave>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let stack: &mut Vec<Rc<Cave>> = &mut self.stack;
-        let mut current_checked = self.checked.last_mut().unwrap();
-        let current_cave = {
-            stack.last().unwrap()
-        };
-        let connected = current_cave.connected.borrow();
-        let to_check: Vec<&Weak<Cave>> = connected.iter().skip(*current_checked).filter(|cave| {
-            let neighbour = cave.upgrade().unwrap();
-            if neighbour.small && self.stack.contains(&neighbour) {
-                return false;                
-            } else {
-                return true;
-            }
-        }).collect();
-
-        if let Some(next) = to_check.iter().next() {
-            let next = next.upgrade().unwrap();
-            stack.push(Rc::clone(&next));
-
-            *current_checked += 1;
-            return Some(self.stack.clone());
-        } else {
-            return None;
+        while self.stack.len() != 0 {
+            let (next, skipped) = self.inner_next();             
+            *self.checked.last_mut().unwrap() += skipped + 1;
+            if let Some(next) = next {                            
+                // let stack_str: Vec<String> = self.stack.iter().map(|c| c.value.clone()).collect();            
+                // println!("Next: {}, Skipped: {}, Stack: {:?}, Checked: {:?}", next.value, skipped, stack_str, self.checked);
+                if next.value == "end" {
+                    let mut res = self.stack.clone();
+                    res.push(Rc::clone(&next));
+                    self.move_to_unchecked();
+                    return Some(res);                    
+                } else {
+                    self.stack.push(Rc::clone(&next));
+                    self.checked.push(0);                    
+                }                
+            } else {        
+                self.move_to_unchecked();
+            }            
         }
+
+        None
     }
 }
 
@@ -155,40 +140,30 @@ impl crate::Advent for PassagePassing {
             }
         });
 
-        println!("Caves: {:?}", caves);
+        // println!("Caves: {:?}", caves);        
         PassagePassing { caves }
     }
 
     fn part1(&mut self) -> usize {
-        // let start = Rc::clone(&self.caves[0]).as_ref();
-        // for cave in start.iter() {
-        //     println!("Cave: {:?}", cave);
-        // }
+        self.caves.iter().for_each(|cave| {
+            let connected: Vec<String> = cave.connected.borrow().iter().map(|c| c.upgrade().unwrap().value.clone()).collect();
+            println!("{} -> {:?}", cave.value, connected);
+        });
 
-        
-        let mut previous_cave: Option<Rc<Cave>> = None;
-        let mut current_cave = Rc::clone(&self.caves[0]);        
-        let mut current_path: Vec<Rc<Cave>> = vec![Rc::clone(&current_cave)];
-        let mut neighbours: Vec<&Weak<Cave>> = current_cave.connected.borrow().iter().filter(|c| {
-            if let Some(previous_cave) = &previous_cave {
-                return c.upgrade().unwrap().value != previous_cave.value;                
-            } else {
-                return true;
-            }
-        }).map(|c| c).collect();
+        let mut paths: Vec<Vec<Rc<Cave>>> = Vec::new();
+        let start = Rc::clone(self.caves.iter().find(|cave| cave.value == "start").unwrap());
+        let cave_traversal = CaveTraversal::new(start);
 
-        let mut num_paths = 0;
+        for path in cave_traversal {
+            paths.push(path);
+        }
 
-        while neighbours.len() != 0 {
-            
-        }        
-    
-        // let cave_system = CaveTraversal::new(Rc::clone(&self.caves[0]));
-        // for caves in cave_system {
-        //     println!("Path: {:?}", caves);
-        // }
+        paths.iter().for_each(|path| {
+            let path_str: Vec<String> = path.iter().map(|cave| cave.value.clone()).collect();
+            println!("Path: {:?}", path_str);
+        });
 
-        3
+        paths.len()
     }
 
     fn part2(&mut self) -> usize {
