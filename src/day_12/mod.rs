@@ -1,5 +1,8 @@
 use std::rc::{Rc, Weak};
 use std::cell::RefCell;
+use std::cmp::Ordering;
+use std::fmt;
+use itertools::Itertools;
 
 pub struct PassagePassing{
     caves: Vec<Rc<Cave>>
@@ -18,6 +21,13 @@ impl Cave {
         Cave { value, connected: RefCell::new(Vec::new()), small }
     }
 }
+
+impl fmt::Display for Cave {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
 impl PartialEq<Cave> for Cave {
     fn eq(&self, other: &Cave) -> bool {
         self.value == other.value
@@ -36,15 +46,21 @@ impl PartialEq<Cave> for String {
     }
 }
 
+enum Part {
+    One,
+    Two
+}
 
 struct CaveTraversal {
     stack: Vec<Rc<Cave>>,
-    checked: Vec<usize> // Number of checked per node
+    checked: Vec<usize>, // Number of checked per node    
+    part: Part,
+    checked_twice_index: Option<usize>,
 }
 
 impl CaveTraversal {
-    pub fn new(root:Rc<Cave>) -> Self {
-        CaveTraversal { stack: vec![root], checked: vec![0] }
+    pub fn new(root:Rc<Cave>, part: Part) -> Self {
+        CaveTraversal { stack: vec![root], checked: vec![0], part, checked_twice_index: None }
     }
 
     // Returns the next unchecked neighbour from the last cave in the stack
@@ -59,7 +75,18 @@ impl CaveTraversal {
         for cave in connected.iter().skip(current_checked) {
             let neighbour = cave.upgrade().unwrap();
             if neighbour.small && self.stack.contains(&neighbour) {
-                skipped += 1;
+                match self.part {
+                    Part::One => {
+                        skipped += 1;
+                    },
+                    Part::Two => {
+                        if neighbour.value != "start" && self.checked_twice_index.is_none() {
+                            self.checked_twice_index = Some(index + 1);
+                        return (Some(Rc::clone(&neighbour)), skipped);
+                        }
+                        skipped += 1;
+                    }
+                }
             } else {
                 return (Some(Rc::clone(&neighbour)), skipped);
             }
@@ -71,6 +98,11 @@ impl CaveTraversal {
     fn move_to_unchecked(&mut self) -> () {
         let mut current_index = self.stack.len() - 1;
         while self.checked[current_index] >= self.stack[current_index].connected.borrow().len() {
+            if let Some(chi) = self.checked_twice_index {
+                if current_index == chi {
+                    self.checked_twice_index = None;
+                }
+            }            
             self.stack.pop();
             self.checked.pop();
             if current_index == 0 {
@@ -88,9 +120,7 @@ impl Iterator for CaveTraversal {
         while self.stack.len() != 0 {
             let (next, skipped) = self.inner_next();             
             *self.checked.last_mut().unwrap() += skipped + 1;
-            if let Some(next) = next {                            
-                // let stack_str: Vec<String> = self.stack.iter().map(|c| c.value.clone()).collect();            
-                // println!("Next: {}, Skipped: {}, Stack: {:?}, Checked: {:?}", next.value, skipped, stack_str, self.checked);
+            if let Some(next) = next {
                 if next.value == "end" {
                     let mut res = self.stack.clone();
                     res.push(Rc::clone(&next));
@@ -138,35 +168,61 @@ impl crate::Advent for PassagePassing {
                 lhs_connected.push(rhs_connection);
                 rhs_connected.push(lhs_connection);
             }
-        });
-
-        // println!("Caves: {:?}", caves);        
+        }); 
         PassagePassing { caves }
     }
 
-    fn part1(&mut self) -> usize {
-        self.caves.iter().for_each(|cave| {
-            let connected: Vec<String> = cave.connected.borrow().iter().map(|c| c.upgrade().unwrap().value.clone()).collect();
-            println!("{} -> {:?}", cave.value, connected);
-        });
-
-        let mut paths: Vec<Vec<Rc<Cave>>> = Vec::new();
+    fn part1(&mut self) -> usize {  
         let start = Rc::clone(self.caves.iter().find(|cave| cave.value == "start").unwrap());
-        let cave_traversal = CaveTraversal::new(start);
+        let cave_traversal = CaveTraversal::new(start, Part::One);
+        let mut num_paths: usize = 0;
 
-        for path in cave_traversal {
-            paths.push(path);
-        }
-
-        paths.iter().for_each(|path| {
-            let path_str: Vec<String> = path.iter().map(|cave| cave.value.clone()).collect();
-            println!("Path: {:?}", path_str);
-        });
-
-        paths.len()
+        for _path in cave_traversal {
+            num_paths += 1;
+        }        
+        num_paths
     }
 
     fn part2(&mut self) -> usize {
-        4
+        let start = Rc::clone(self.caves.iter().find(|cave| cave.value == "start").unwrap());        
+        let cave_traversal = CaveTraversal::new(Rc::clone(&start), Part::Two);
+        let mut num_paths: usize = 0;
+        for _path in cave_traversal {
+            num_paths += 1;
+        }
+        num_paths
+    }
+}
+
+impl fmt::Display for PassagePassing {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\n")?;
+        for cave in &self.caves {
+            let connected: Vec<String> = cave.connected.borrow().iter().map(|c| c.upgrade().unwrap().value.clone()).collect();
+            let connected_str = format!("{:?}", connected);
+            write!(f, "\t{} -> {}\n", cave.value, connected_str)?;
+        }
+        write!(f, "\n")
+    }
+}
+
+impl PassagePassing {
+    #[allow(dead_code)]
+    fn order_paths(&self, paths: Vec<Vec<Rc<Cave>>>) -> Vec<Vec<Rc<Cave>>> {
+        let paths: Vec<Vec<Rc<Cave>>> = paths.into_iter().sorted_by(|a, b| {
+            let mut x = 0;
+            while x < a.len() && x < b.len() {
+                let ord = a[x].value.cmp(&b[x].value);
+
+                if !ord.is_eq() {
+                    return ord;
+                }
+
+                x += 1;
+            }
+
+            return Ordering::Equal;
+        }).collect();
+        paths
     }
 }
