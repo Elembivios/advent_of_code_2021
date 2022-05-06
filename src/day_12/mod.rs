@@ -129,8 +129,8 @@ impl Iterator for CaveTraversal {
                 } else {
                     self.stack.push(Rc::clone(&next));
                     self.checked.push(0);                    
-                }                
-            } else {        
+                }
+            } else {
                 self.move_to_unchecked();
             }            
         }
@@ -213,14 +213,11 @@ impl PassagePassing {
             let mut x = 0;
             while x < a.len() && x < b.len() {
                 let ord = a[x].value.cmp(&b[x].value);
-
                 if !ord.is_eq() {
                     return ord;
                 }
-
                 x += 1;
             }
-
             return Ordering::Equal;
         }).collect();
         paths
