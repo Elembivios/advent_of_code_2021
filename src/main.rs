@@ -1,3 +1,5 @@
+mod euclidean;
+
 mod day_01;
 mod day_02;
 mod day_03;
@@ -11,7 +13,8 @@ mod day_10;
 mod day_11;
 mod day_12;
 mod day_13;
-mod euclidean;
+mod day_14;
+
 
 use std::{error::Error, fs};
 use structopt::StructOpt;
@@ -98,6 +101,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         11 => Solution::new::<day_11::DumboOctopus>(content),
         12 => Solution::new::<day_12::PassagePassing>(content),
         13 => Solution::new::<day_13::TransparentOrigami>(content),
+        14 => Solution::new::<day_14::ExtendedPolymerization>(content),
         _ => unreachable!(),
     };
 
