@@ -7,7 +7,7 @@ pub enum Axis {
     Y
 }
 
-#[derive(Eq)]
+#[derive(Eq, Hash, Debug)]
 pub struct Coordinate<T> {
     pub x: T,
     pub y: T
@@ -53,5 +53,41 @@ impl Index<Axis> for Coordinate<u32> {
             Axis::X => &self.x,
             Axis::Y => &self.y
         }
+    }
+}
+
+#[derive(Eq, Hash, Debug)]
+pub struct Point<T, U> {
+    pub val: T,
+    pub coordinate: Coordinate<U>
+}
+
+impl<T, U> Point<T, U> {
+    fn new(val: T, coordinate: Coordinate<U>) -> Point<T, U> {
+        Point {val, coordinate}
+    }
+}
+
+impl<T: std::fmt::Display, U: std::fmt::Display> fmt::Display for Point<T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.val, self.coordinate)
+    }
+}
+
+impl<T: std::cmp::PartialEq, U> PartialEq for Point<T, U> {
+    fn eq(&self, other: &Self) -> bool {
+        self.val.cmp(other.val)
+    }
+}
+
+impl<T: Ord, U: Ord> Ord for Point<T, U> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.val.cmp(&other.val)        
+    }    
+}
+
+impl<T: PartialOrd + Ord, U: PartialOrd + Ord> PartialOrd for Point<T, U> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {        
+        Some(self.cmp(other))
     }
 }

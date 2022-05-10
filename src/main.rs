@@ -14,7 +14,7 @@ mod day_11;
 mod day_12;
 mod day_13;
 mod day_14;
-
+mod day_15;
 
 use std::{error::Error, fs};
 use structopt::StructOpt;
@@ -102,6 +102,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         12 => Solution::new::<day_12::PassagePassing>(content),
         13 => Solution::new::<day_13::TransparentOrigami>(content),
         14 => Solution::new::<day_14::ExtendedPolymerization>(content),
+        15 => Solution::new::<day_15::Chiton>(content),
         _ => unreachable!(),
     };
 
