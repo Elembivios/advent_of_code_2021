@@ -1,142 +1,98 @@
-use super::euclidean::{Point, Axis, Coordinate};
+use std::collections::BinaryHeap;
 
-// Aliases
-type P = Point<u8, usize>;
-type Line = Vec<P>;
-type Map = Vec<Line>;
 
 pub struct Chiton {
-    map_p1: Grid,
-    map_p2: Grid
-}
-
-struct Grid {
-    map: Map,
-    height: usize,
-    width: usize,
-}
-
-impl Grid {
-    fn new(map: Map) -> Grid {
-        let height: usize = map.len();
-        let width: usize = map[0].len();
-        Grid { map, height, width }
-    }
-
-    fn neighbors(&self, point: &P) -> Vec<&P> {
-        let neighbors: Vec<&P> = vec![];
-        if point.coordinate.x > 0 {
-            neighbors.push(self.get_point(point.coordinate.x - 1, point.coordinate.y));        
-        }
-
-        if point.coordinate.x < self.width {
-            neighbors.push(self.get_point(point.coordinate.x + 1, point.coordinate.y));            
-        }
-
-        if point.coordinate.y > 0 {
-            neighbors.push(self.get_point(point.coordinate.x, point.coordinate.y - 1));            
-        }
-
-        if point.coordinate.y < self.height {
-            neighbors.push(self.get_point(point.coordinate.x, point.coordinate.y + 1));
-        } 
-
-        neighbors
-    }
-
-    fn get_point(&self, x: usize, y: usize) -> &P {
-        &self.map[y][x]
-    }
-}
-
-impl Chiton {
-    fn neighbors(&self, point: P) -> Vec<&P>{
-        let neighbors: Vec<&P> = vec![];
-
-
-        neighbors
-    }
+    maze: Vec<Vec<i32>>,
+    expanded: Vec<Vec<i32>>
 }
 
 impl crate::Advent for Chiton {
     fn new(data: &str) -> Chiton {
-        let data: Map = data.lines().enumerate().map(|(x, line)| {
-            let points: Line = line.chars().enumerate().map(|(y, c)| {
-                let val: u8 = c.to_digit(10).unwrap() as u8;
-                let coordinate: Coordinate<usize> = Coordinate { x, y };
-                Point { val, coordinate }
-            }).collect();
-            points
-        }).collect();
-        let part1 = Grid::new(data);
-        let part2 = Grid::new(vec![]);
-        Chiton {map_p1: part1, map_p2: part2}
+        let maze = data
+            .lines()
+            .map(|l| {
+                l.bytes()
+                    .map(|c| {
+                        (c - b'0') as i32
+                    }).collect::<Vec<_>>()
+            }).collect::<Vec<_>>();
+        
+        let expanded = {
+            (0..(5*maze.len())).map(|x| {
+                (0..(5*maze[0].len())).map(|y| {
+                    let cost = maze[x % maze.len()][y % maze[0].len()]
+                        + (x / maze.len()) as i32
+                        + (y / maze[0].len()) as i32;
+                    if cost < 10 { cost } else { cost - 9}                
+                }).collect::<Vec<_>>()
+            }).collect::<Vec<_>>()
+        };
+            
+        Chiton { maze, expanded }
     }
 
     fn part1(&mut self) -> usize {
-
-
-        1
+        shortest_path(&self.maze) as usize
     }
 
     fn part2(&mut self) -> usize {
-        2
+        shortest_path(&self.expanded) as usize
     }
 }
 
-use std::collections::HashMap;
-
-fn reconstuct_path(came_from: HashMap<&P, &P>, current: &P) -> Vec<P> {    
-    let mut total_path = vec![];
-    let mut current_point = Some(current);
-
-    // A bit different implementation
-    while current_point.is_some() {
-        total_path.insert(0, *current_point.unwrap().clone());
-        let current_point = came_from.remove(current_point.unwrap());
-    }
-    total_path
-}
-
-fn d(current: &P, neighbor: &P) -> usize {
-    3
-}
-
-fn a_star(grid: Grid, start: &P, goal: &P, h: fn(&P) -> usize) -> Option<Vec<P>> {
-    let mut open_set = vec![start];
-
-    let came_from: HashMap<&P, &P> = HashMap::new();
-
-    // TODO: Default value of infinity
-    let g_score: HashMap<&P, usize> = HashMap::from([
-        (start, 0)
-    ]);
-    
-    // TODO: Default value of infinity
-    let f_score: HashMap<&P, usize> = HashMap::from([
-        (start, h(&start))
-    ]);
-
-    while open_set.len() != 0 {
-        let current = *open_set.iter().min_by(|a, b| {
-            a.coordinate.cmp(&b.coordinate)
-        }).unwrap();
-
-        if current == goal { // Comapring references?
-            return Some(reconstuct_path(came_from, current))
-        }
-
-        let pos = open_set.iter().position(|p| *p == current).unwrap();
-        open_set.remove(pos);
-
-        for neighbor in grid.neighbors(current) {
-            let tentative_g_score = g_score[current] + d(current, neighbor);
-            g_score[neighbor] = tentative_g_score;
-            f_score[neighbor] = tentative_g_score + h(neighbor);
-            if !open_set.contains(&neighbor) {
-                open_set.push(neighbor);
-            }
-        }                
-    }
+enum Arith {
+    Sub,
+    Add,
     None
+}
+const OFFSETS: [(Arith, Arith); 4] = [
+    (Arith::Sub, Arith::None),
+    (Arith::Add, Arith::None),
+    (Arith::None, Arith::Sub),
+    (Arith::None, Arith::Add)
+];
+
+fn shortest_path(maze: &[Vec<i32>]) -> i32 {
+    let goal = (maze.len() - 1, maze[0].len() - 1);
+    let mut dist = vec![vec![i32::MAX; maze[0].len()]; maze.len()];
+    let mut q = BinaryHeap::new();
+
+    q.push((0, 0, 0));
+    while let Some((cost, x, y)) = q.pop() {
+        if (x, y) == goal { return -cost; }
+        if -cost > dist[x][y] { continue; }
+
+        for (x_a, y_a) in OFFSETS {
+            let x1: Option<usize> = match x_a {
+                Arith::None => Some(x),
+                Arith::Add => { 
+                    let rx = x + 1; 
+                    if rx < maze.len() { Some(rx) } else { None }
+                } ,
+                Arith::Sub => if x > 0 { Some(x - 1)} else { None }
+            };
+            let y1: Option<usize> = match y_a {
+                Arith::None => Some(y),
+                Arith::Add => {
+                    let ry = y + 1;
+                    if ry < maze[0].len() { Some(ry) } else { None }
+                },
+                Arith::Sub => if y > 0 { Some(y - 1) } else { None }
+            }; 
+
+            
+            if let (Some(x1), Some(y1)) = (x1, y1) {
+                let c = maze[x][y];
+                let next_cost = -cost + c;
+                if next_cost < dist[x1][y1] {
+                    q.push((-next_cost, x1, y1));
+                    dist[x1][y1] = next_cost;
+                }
+            } else {
+                continue;
+            }
+        }
+    }
+
+    unreachable!()    
 }

@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::cmp::{Ordering, PartialEq};
 use std::ops::Index;
 use std::fmt;
 
@@ -19,7 +19,7 @@ impl<T: std::fmt::Display> fmt::Display for Coordinate<T> {
     }
 }
 
-impl<T: std::cmp::PartialEq> PartialEq for Coordinate<T> {
+impl<T: PartialEq> PartialEq for Coordinate<T> {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
@@ -74,16 +74,21 @@ impl<T: std::fmt::Display, U: std::fmt::Display> fmt::Display for Point<T, U> {
     }
 }
 
-impl<T: std::cmp::PartialEq, U> PartialEq for Point<T, U> {
+impl<T: PartialEq, U: PartialEq> PartialEq for Point<T, U> {
     fn eq(&self, other: &Self) -> bool {
-        self.val.cmp(other.val)
+        self.val == other.val && self.coordinate == other.coordinate
     }
 }
 
 impl<T: Ord, U: Ord> Ord for Point<T, U> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.val.cmp(&other.val)        
-    }    
+        // self.val.cmp(&other.val)
+        let ord = self.coordinate.cmp(&other.coordinate);
+        if ord != Ordering::Equal {
+            return ord;
+        }
+        self.val.cmp(&other.val)
+    }
 }
 
 impl<T: PartialOrd + Ord, U: PartialOrd + Ord> PartialOrd for Point<T, U> {
