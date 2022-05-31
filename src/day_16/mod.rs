@@ -1,8 +1,6 @@
 
 use hex;
 use bitvec::prelude::*;
-use std::fmt;
-use std::cell::RefCell;
 
 pub struct PacketDecoder {
     // bits: BitVec<u8, Msb0>
