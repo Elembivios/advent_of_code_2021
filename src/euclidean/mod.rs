@@ -7,6 +7,7 @@ pub enum Axis {
     Y
 }
 
+#[allow(dead_code)]
 #[derive(Eq, Hash, Debug)]
 pub struct Coordinate<T> {
     pub x: T,
@@ -62,6 +63,7 @@ pub struct Point<T, U> {
     pub coordinate: Coordinate<U>
 }
 
+#[allow(dead_code)]
 impl<T, U> Point<T, U> {
     fn new(val: T, coordinate: Coordinate<U>) -> Point<T, U> {
         Point {val, coordinate}
