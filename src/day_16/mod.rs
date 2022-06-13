@@ -192,10 +192,10 @@ impl crate::Advent for PacketDecoder {
                 }
             } 
             if let Some((all_numbers_index, num_subpackets)) = all_numbers_index {
-                let mut value: usize = 0;
+                // let mut value: usize = 0;
                 let mut length_sum: usize = 0;
                 let packet = &self.equation[all_numbers_index];
-                match packet {
+                let value = match packet {
                     Packet::Op(operator) => {                        
                         let numbers: Vec<&Number> = self.equation[all_numbers_index + 1 .. all_numbers_index + 1 + num_subpackets].iter().filter_map(|p| {
                             match p {
@@ -206,7 +206,7 @@ impl crate::Advent for PacketDecoder {
                         let values: Vec<usize> = numbers.iter().map(|n| n.value).collect();
                         length_sum += numbers.iter().map(|n| n.length).sum::<usize>();
                         length_sum += operator.length;
-                        value = match operator.operation {
+                        match operator.operation {
                             Operation::Sum => values.iter().sum(),
                             Operation::Product => values.iter().product(),
                             Operation::Minimum => *values.iter().min().unwrap(),
@@ -214,10 +214,10 @@ impl crate::Advent for PacketDecoder {
                             Operation::Greater => if values[0] > values[1] { 1 } else { 0 },
                             Operation::Less => if values[0] < values[1] { 1 } else { 0 },
                             Operation::Equal => if values[0] == values[1] { 1 } else { 0 },                        
-                        }                    
+                        }
                     },
                     _ => panic!("This should be an operator")
-                }        
+                };     
 
                 let number = Number { value, length: length_sum };
 

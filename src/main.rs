@@ -51,10 +51,11 @@ impl Solution {
         }
     }
 
-    fn get_result(&mut self, day: u32) {
+    fn get_result(&mut self, day: u32) -> Duration {
         let (part1, time1) = get_time(|| self.event.part1());
         let (part2, time2) = get_time(|| self.event.part2());
 
+        println!("-----------------------------");
         println!("Solution for day {}", day);
         println!(
             "Collect data in {}",
@@ -63,19 +64,21 @@ impl Solution {
         println!(
             "Part 1: {} in {}",
             part1.fg_rgb::<100,252,218>(),
-            format_duration(time1).fg_rgb::<100, 252,218>()
+            format_duration(time1).fg_rgb::<255, 63, 128>()
         );
         println!(
             "Part 2: {} in {}",
             part2.fg_rgb::<100, 252, 218>(),
-            format_duration(time2).fg_rgb::<100, 252, 218>()
+            format_duration(time2).fg_rgb::<255, 63, 128>()
         );
+
+        self.time + time1 + time2
     }
 }
 
 #[derive(StructOpt)]
 struct Cli {
-    day: u32,
+    day: Option<u32>,
 
     #[structopt(short, long, help= "Uses example file provided by AOC")]
     example: bool,
@@ -85,35 +88,51 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::from_args();
 
     let main_file = if args.example { "example" } else { "input" };
-    let filename = format!("src/day_{:02}/{}.txt", args.day, main_file);
 
-    let mut content: &str = &fs::read_to_string(filename)
-        .with_context(|| format!("Could not read {} file for day {}", main_file, args.day))?;
-    content = content.trim();
-
-    let mut solution = match args.day {
-        1 => Solution::new::<day_01::SonarSweep>(content),
-        2 => Solution::new::<day_02::Dive>(content),
-        3 => Solution::new::<day_03::BinaryDiagnostic>(content),
-        4 => Solution::new::<day_04::GiantSquid>(content),
-        5 => Solution::new::<day_05::HydrothermalVenture>(content),
-        6 => Solution::new::<day_06::Lanternfish>(content),
-        7 => Solution::new::<day_07::TheThreacheryOfWhales>(content),
-        8 => Solution::new::<day_08::SevenSegmentSearch>(content),
-        9 => Solution::new::<day_09::SmokeBasin>(content),
-        10 => Solution::new::<day_10::SyntaxScoring>(content),
-        11 => Solution::new::<day_11::DumboOctopus>(content),
-        12 => Solution::new::<day_12::PassagePassing>(content),
-        13 => Solution::new::<day_13::TransparentOrigami>(content),
-        14 => Solution::new::<day_14::ExtendedPolymerization>(content),
-        15 => Solution::new::<day_15::Chiton>(content),
-        16 => Solution::new::<day_16::PacketDecoder>(content),
-        17 => Solution::new::<day_17::TrickShot>(content),
-        18 => Solution::new::<day_18::Snailfish>(content),
-        _ => unreachable!(),
+    let days = if let Some(day) = args.day {
+        day..day + 1
+    } else {
+        1u32 .. 18u32
     };
+    let mut duration: Duration = Duration::new(0, 0);
 
-    solution.get_result(args.day);
+    for day in days {
+        let filename = format!("src/day_{:02}/{}.txt", day, main_file);
+
+        let mut content: &str = &fs::read_to_string(filename)
+            .with_context(|| format!("Could not read {} file for day {}", main_file, day))?;
+        content = content.trim();
+
+        let mut solution = match day {
+            1 => Solution::new::<day_01::SonarSweep>(content),
+            2 => Solution::new::<day_02::Dive>(content),
+            3 => Solution::new::<day_03::BinaryDiagnostic>(content),
+            4 => Solution::new::<day_04::GiantSquid>(content),
+            5 => Solution::new::<day_05::HydrothermalVenture>(content),
+            6 => Solution::new::<day_06::Lanternfish>(content),
+            7 => Solution::new::<day_07::TheThreacheryOfWhales>(content),
+            8 => Solution::new::<day_08::SevenSegmentSearch>(content),
+            9 => Solution::new::<day_09::SmokeBasin>(content),
+            10 => Solution::new::<day_10::SyntaxScoring>(content),
+            11 => Solution::new::<day_11::DumboOctopus>(content),
+            12 => Solution::new::<day_12::PassagePassing>(content),
+            13 => Solution::new::<day_13::TransparentOrigami>(content),
+            14 => Solution::new::<day_14::ExtendedPolymerization>(content),
+            15 => Solution::new::<day_15::Chiton>(content),
+            16 => Solution::new::<day_16::PacketDecoder>(content),
+            17 => Solution::new::<day_17::TrickShot>(content),
+            18 => Solution::new::<day_18::Snailfish>(content),
+            _ => unreachable!(),
+        };
+
+        duration += solution.get_result(day);        
+    }
+
+    println!("-----------------------------");
+    println!(
+        "Duration: {}",
+        format_duration(duration).fg_rgb::<255, 63, 128>()
+    );
 
     Ok(())    
 }
