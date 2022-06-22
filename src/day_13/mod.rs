@@ -102,7 +102,8 @@ impl crate::Advent for TransparentOrigami {
             self.fold();
         }
 
-        println!("Result: {}", self);
+        // This is the actual solution -- displayed as colored squares
+        // println!("Result: {}", self);
 
         self.coordinates.len()
     }
