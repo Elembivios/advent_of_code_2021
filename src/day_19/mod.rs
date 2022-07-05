@@ -1,45 +1,48 @@
+// My implementation of day 19 using brute force; rotating
+// each scanner untill 12 matching offsets are found.
+// This code runs in ~ 1.0 second.
+
 use std::fmt;
 use std::ops::{Add, Sub, AddAssign};
-use std::cmp;
+use std::collections::{HashMap, VecDeque};
+
 use itertools::Itertools;
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Sign {
+    Pos,
+    Neg
+}
+
+impl Sign {
+    fn next(&self) -> Self {
+        match self {
+            Sign::Pos => Sign::Neg,
+            Sign::Neg => Sign::Pos
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum Axis {
+    X, Y, Z
+}
+
+impl Axis {
+    fn next(&self) -> Self {
+        match self {
+            Axis::X => Axis::Y,
+            Axis::Y => Axis::Z,
+            Axis::Z => Axis::X,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash)]
 struct Coord {
     x: isize, 
     y: isize,
     z: isize
-}
-
-impl Coord {
-    fn normalize(&mut self) {
-        // Orders x, y and z from smallest to largest and makes x and y positive
-        // eg.: (-68, -1246, -43) => (43, -1246. -68) => (43, 68, -1246)
-        let valsort = |lhs: &mut isize, rhs: &mut isize| {
-            if lhs.abs() > rhs.abs() {
-                let (olhs, orhs) = (*lhs, *rhs);
-                if *rhs <= 0 {
-                    *rhs = olhs;
-                    *lhs = -orhs;
-                } else {
-                    *rhs = -olhs;
-                    *lhs = orhs;
-                }
-            }
-        };
-
-        valsort(&mut self.x, &mut self.z);
-        valsort(&mut self.x, &mut self.y);
-        valsort(&mut self.y, &mut self.z);
-
-        if self.x < 0 {
-            self.x = -self.x;
-            self.y = -self.y;
-        }
-        if self.y < 0 {
-            self.y = -self.y;
-            self.z = -self.z;
-        }
-    }
 }
 
 impl Add for Coord {
@@ -76,34 +79,15 @@ impl PartialEq for Coord {
     }
 }
 
-impl cmp::PartialOrd for Coord {
-    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl cmp::Ord for Coord {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        let x_ord = self.x.cmp(&other.x);
-        match x_ord {
-            cmp::Ordering::Equal => {
-                let y_ord = self.y.cmp(&other.y);
-                match y_ord {
-                    cmp::Ordering::Equal => {
-                        return self.z.cmp(&other.z);
-                    },
-                    _ => return y_ord
-                }
-            },
-            _ => return x_ord
-        }
-    }
-}
 
 #[derive(Clone)]
 struct Scanner {
     i: usize,
+    c: Option<Coord>,
     beacons: Vec<Coord>,
+    facing_axis: Axis,
+    facing_sign: Sign,
+    rotation_index: usize
 }
 
 impl Scanner {
@@ -133,7 +117,140 @@ impl Scanner {
     }
 
     fn new(beacons: Vec<Coord>, i: usize) -> Self {
-        Scanner { beacons, i }
+        Scanner { c: None, beacons, facing_axis: Axis::X, facing_sign: Sign::Pos, i, rotation_index: 0 }
+    }
+
+    fn change_axis(&mut self) {
+        let next_axis = self.facing_axis.next();        
+        match (self.facing_axis, next_axis) {
+            (Axis::X, Axis::Y) => {
+                self.tilt_rev(Axis::Z);
+            },
+            (Axis::Y, Axis::Z) => {
+                self.tilt_rev(Axis::X);
+            },
+            (Axis::Z, Axis::X) => {
+                self.tilt_rev(Axis::Y);
+            },
+            _ => panic!("Invalid next axis configuration. Wanted to go from {:?} to {:?}", self.facing_axis, next_axis),
+        }
+        self.facing_axis = next_axis;
+    }
+
+    fn change_sign(&mut self) {
+        self.facing_sign = self.facing_sign.next();
+        let tilt_over = match self.facing_axis {
+            Axis::X => Axis::Z,
+            Axis::Y => Axis::Z,
+            Axis::Z => Axis::X            
+        };
+        self.tilt(tilt_over);
+        self.tilt(tilt_over);
+    }
+
+    fn tilt(&mut self, over: Axis) {
+        // println!("Tilted over: {:?}", over);
+        for c in self.beacons.iter_mut() {
+            match over {
+                Axis::X => { 
+                    let temp = c.y;
+                    c.y = c.z;
+                    c.z = temp * -1;
+                },
+                Axis::Y => {
+                    let temp = c.z;
+                    c.z = c.x;
+                    c.x = temp * -1;
+                },
+                Axis::Z => { 
+                    let temp = c.x;
+                    c.x = c.y;
+                    c.y = temp * -1;
+                }
+            }            
+        }
+    }
+
+    fn tilt_rev(&mut self, over: Axis) {
+        // println!("Tilted over: {:?}", over);
+        for c in self.beacons.iter_mut() {
+            match over {
+                Axis::X => { 
+                    let temp = c.z;
+                    c.z = c.y;
+                    c.y = temp * -1;
+                },
+                Axis::Y => {
+                    let temp = c.x;
+                    c.x = c.z;
+                    c.z = temp * -1;
+                },
+                Axis::Z => { 
+                    let temp = c.y;
+                    c.y = c.x;
+                    c.x = temp * -1;
+                }
+            }            
+        }
+    }
+
+    fn rotate(&mut self) {
+        if self.rotation_index  == 0 {
+            // Already in correct position, just return
+            self.rotation_index += 1;
+            return;
+        }        
+        if self.rotation_index % 4 == 0 {                 
+            // Tilt back to original position
+            self.tilt(self.facing_axis.clone());
+            self.change_sign();
+
+            if self.rotation_index % 8 == 0 {
+                self.change_axis();
+                if self.rotation_index == 24 {
+                    self.tilt(Axis::X);
+                    self.rotation_index = 1;
+                } else {
+                    self.rotation_index += 1;
+                }
+                return;
+            }
+
+            self.rotation_index += 1;
+            return;
+        }
+        self.tilt(self.facing_axis.clone());
+        self.rotation_index += 1;
+    }
+
+    fn find_offset(&self, other: &mut Self) -> Option<Coord> {
+        for _x in 0..24 {
+            other.rotate();
+            let mut offsets: HashMap<Coord, usize> = HashMap::new();
+            for b1 in &self.beacons {
+                for b2 in &other.beacons {
+                    let diff = *b1 - *b2;
+                    let offset_count = offsets.entry(diff).or_insert(1);
+                    *offset_count += 1;
+                    if *offset_count >= 12 {
+                        return Some(diff)
+                    }
+                }
+            }
+            // println!("Max Offsets: {:?}", offsets.values().max());
+            offsets.clear(); 
+        }
+
+        None
+    }
+
+    fn merge(&mut self, other: &mut Self, offset: Coord) {
+        for beacon in other.beacons.iter_mut() {
+            *beacon += offset;
+            if !self.beacons.contains(beacon) {
+                self.beacons.push(*beacon);
+            }
+        }
     }
     
 }
@@ -148,141 +265,9 @@ impl fmt::Display for Scanner {
     }
 }
 
-fn find_valid_transformer(from: Coord, to: Coord) -> (usize, &'static dyn Fn(Coord) -> Coord) {
-    let transformation: [&dyn Fn(Coord) -> Coord; 24] = [
-        &|c| { let c = Coord { x: c.x, y: c.y, z: c.z}; Coord { x: c.x, y: c.y, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: c.y, z: c.z}; Coord { x: -c.y, y: c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: c.y, z: c.z}; Coord { x: c.y, y: -c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: c.y, z: c.z}; Coord { x: -c.x, y: -c.y, z: c.z}}.into(),
-
-        &|c| { let c = Coord { x: c.x, y: -c.z, z: c.y}; Coord { x: c.x, y: c.y, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: -c.z, z: c.y}; Coord { x: -c.y, y: c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: -c.z, z: c.y}; Coord { x: c.y, y: -c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: -c.z, z: c.y}; Coord { x: -c.x, y: -c.y, z: c.z}}.into(),
-
-        &|c| { let c = Coord { x: c.x, y: c.z, z: -c.y}; Coord { x: c.x, y: c.y, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: c.z, z: -c.y}; Coord { x: -c.y, y: c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: c.z, z: -c.y}; Coord { x: c.y, y: -c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: c.z, z: -c.y}; Coord { x: -c.x, y: -c.y, z: c.z}}.into(),     
-
-        &|c| { let c = Coord { x: c.x, y: -c.y, z: -c.z}; Coord { x: c.x, y: c.y, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: -c.y, z: -c.z}; Coord { x: -c.y, y: c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: -c.y, z: -c.z}; Coord { x: c.y, y: -c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.x, y: -c.y, z: -c.z}; Coord { x: -c.x, y: -c.y, z: c.z}}.into(),
-
-        &|c| { let c = Coord { x: c.z, y: c.y, z: -c.x}; Coord { x: c.x, y: c.y, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.z, y: c.y, z: -c.x}; Coord { x: -c.y, y: c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.z, y: c.y, z: -c.x}; Coord { x: c.y, y: -c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: c.z, y: c.y, z: -c.x}; Coord { x: -c.x, y: -c.y, z: c.z}}.into(),
-
-        &|c| { let c = Coord { x: -c.z, y: c.y, z: c.x}; Coord { x: c.x, y: c.y, z: c.z}}.into(),
-        &|c| { let c = Coord { x: -c.z, y: c.y, z: c.x}; Coord { x: -c.y, y: c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: -c.z, y: c.y, z: c.x}; Coord { x: c.y, y: -c.x, z: c.z}}.into(),
-        &|c| { let c = Coord { x: -c.z, y: c.y, z: c.x}; Coord { x: -c.x, y: -c.y, z: c.z}}.into(),
-    ];
-    for (idx, tran) in transformation.iter().copied().enumerate() {
-        if tran(from) == to {
-            return (idx, tran);
-        }
-    }
-
-    unreachable!()
-}
-
-fn solve(scanners: &[Scanner]) -> (Vec<(usize, Coord)>, Vec<Coord>) {
-    let mut normalized: Vec<(usize, Vec<(Coord, Coord, Coord)>)> = scanners
-        .iter()
-        .enumerate()
-        .map(|(sidx, s)| {
-            let beacons = s.beacons.as_slice();
-            let mut norm: Vec<_> = beacons.iter().permutations(2).map(|p| {
-                    (p[0], p[1])
-                }).map(|(&lhs, &rhs)| {
-                    let mut diff = lhs - rhs;
-                    diff.normalize();
-                    (diff, lhs, rhs)
-                }).collect();
-
-            norm.sort_unstable();
-            (sidx, norm)
-        }).collect();
-    let (psidx, mut active_normalized) = normalized.remove(0);
-    let mut full_normalized = active_normalized.clone();
-    let mut scanner_location = vec![(0, Coord { x: 0, y: 0, z: 0})];
-    let mut known_beacon = scanners[psidx].beacons.clone();
-
-    let mut candidate_count = vec![];
-
-    while !normalized.is_empty() {
-        // Rebuild the list of norms from the full set
-        active_normalized.clear();
-        active_normalized.extend(full_normalized.iter().copied());
-        active_normalized.sort_unstable();
-
-        normalized.drain_filter(|(nidx, n)|{
-            candidate_count.clear();
-            let mut lhsiter = active_normalized.group_by(|lhs, rhs| {lhs.0 == rhs.0}).peekable();
-            let mut rhsiter = n.group_by(|lhs, rhs| {lhs.0 == rhs.0}).peekable();            
-            while lhsiter.peek().is_some() && rhsiter.peek().is_some() {
-                match (lhsiter.peek(), rhsiter.peek()) {
-                    (Some(lhs), Some(rhs)) => {
-                        match lhs[0].0.cmp(&rhs[0].0) {
-                            std::cmp::Ordering::Equal => {
-                                for (lhs, rhs) in lhs.iter().map(|lhs| rhs.iter().map(move |rhs| (lhs, rhs))).flatten() {
-                                    let left = lhs.2 - lhs.1;
-                                    let right = rhs.2 - rhs.1;
-                                    let (tranid, tran) = find_valid_transformer(right, left);
-                                    let ls = lhs.1;
-                                    let rs = tran(rhs.1);
-                                    let offset = ls - rs;
-                                    candidate_count.push((offset, tranid, tran));                                    
-                                }
-                                lhsiter.next();
-                                rhsiter.next();
-                            },
-                            std::cmp::Ordering::Less => {
-                                lhsiter.next();
-                            },
-                            std::cmp::Ordering::Greater => {
-                                rhsiter.next();
-                            }
-                        }
-                    },
-                    _ => unreachable!()
-                }                
-            }
-
-            candidate_count.sort_unstable_by_key(|(offset, tranid, _tran)| (*offset, *tranid));
-            let transinfo = candidate_count.group_by(|lhs, rhs| (lhs.0, lhs.1) == (rhs.0, rhs.1))
-                .filter(|candidate| candidate.len() >= 6 )
-                .max_by_key(|candidate| candidate.len());
-            let candidate = match transinfo {
-                Some(candidate) => candidate,
-                None => return false
-            };
-            let (pos, _tranid, tran) = candidate[0];
-            full_normalized.extend(n.iter().map(|(norm, lhs, rhs)| {
-                let t = tran(*lhs);
-                let lhs = t + pos;
-                let t = tran(*rhs);
-                let rhs = t + pos;
-                (*norm, lhs, rhs)
-            }));
-
-            known_beacon.extend(scanners[*nidx].beacons.iter().map(|b| {
-                let t = tran(*b);
-                t + pos
-            }));
-            scanner_location.push((*nidx, (pos)));
-            true
-        }).for_each(|_| ());
-    }
-
-    (scanner_location, known_beacon)
-}
-
 pub struct BeaconScaner {
     scanners: Vec<Scanner>,
+    offsets: Vec<Coord>
 }
 
 impl crate::Advent for BeaconScaner {
@@ -292,26 +277,295 @@ impl crate::Advent for BeaconScaner {
             .split("\n\n")
             .map(|s| Scanner::from_str(s))
             .collect();
-        BeaconScaner { scanners }
+        BeaconScaner { scanners, offsets: vec![] }
     }
 
     fn part1(&mut self) -> usize {        
-        let (_, mut beacons) = solve(&self.scanners);
-        beacons.sort_unstable();
-        beacons.dedup();
-        beacons.len()
+        let mut scanners = VecDeque::from(self.scanners.clone());
+
+        let mut origin = scanners.pop_front().unwrap();
+        origin.c = Some(Coord{ x: 0, y: 0, z: 0});
+        while scanners.len() != 0 {
+            let s2 = scanners.pop_front().unwrap();
+            let mut s2 = s2.clone();
+            let offset = origin.find_offset(&mut s2);
+            if let Some(offset) = offset {
+                // println!("Matches {}", s2.i);
+                origin.merge(&mut s2, offset);
+                self.offsets.push(offset);
+            } else {
+                scanners.push_back(s2);
+            }
+        }
+
+        origin.beacons.len()    
     }
 
     fn part2(&mut self) -> usize {
-        let (scanners, _) = solve(&self.scanners);
-        scanners.iter()
-            .map(|lhs| {
-                scanners.iter().map(move |rhs| (lhs, rhs))
-            }).flatten()
-            .map(|((_, lhs), (_, rhs))| {
-                let diff = *lhs - *rhs;
-                (diff.x.abs() + diff.y.abs() + diff.z.abs()) as usize
-            })
-            .max().unwrap()
+        let max_dist = self.offsets.iter().permutations(2).map(|v| {
+            let (a, b) = (v[0], v[1]);
+            let diff = *a - *b;
+            diff.x.abs() + diff.y.abs() + diff.z.abs()
+        }).max();
+
+        max_dist.unwrap() as usize
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn get_small_scanner() -> Scanner {
+        Scanner::from_str(
+            "--- scanner 0 ---
+-1,-1,1
+-2,-2,2
+-3,-3,3
+-2,-3,1
+5,6,-4
+8,0,7")
+    }
+
+    fn get_scanner_0() -> Scanner {        
+        Scanner::from_str(
+            "--- scanner 0 ---
+404,-588,-901
+528,-643,409
+-838,591,734
+390,-675,-793
+-537,-823,-458
+-485,-357,347
+-345,-311,381
+-661,-816,-575
+-876,649,763
+-618,-824,-621
+553,345,-567
+474,580,667
+-447,-329,318
+-584,868,-557
+544,-627,-890
+564,392,-477
+455,729,728
+-892,524,684
+-689,845,-530
+423,-701,434
+7,-33,-71
+630,319,-379
+443,580,662
+-789,900,-551
+459,-707,401"
+        )
+    }
+    fn get_scanner_1() -> Scanner {
+        Scanner::from_str(
+            "--- scanner 1 ---
+686,422,578
+605,423,415
+515,917,-361
+-336,658,858
+95,138,22
+-476,619,847
+-340,-569,-846
+567,-361,727
+-460,603,-452
+669,-402,600
+729,430,532
+-500,-761,534
+-322,571,750
+-466,-666,-811
+-429,-592,574
+-355,545,-477
+703,-491,-529
+-328,-685,520
+413,935,-424
+-391,539,-444
+586,-435,557
+-364,-763,-893
+807,-499,-711
+755,-354,-619
+553,889,-390"
+        )
+    }
+    // fn get_scanner_2() -> Scanner {
+    //     Scanner::from_str(
+    //         "--- scanner 2 ---
+    // 649,640,665
+    // 682,-795,504
+    // -784,533,-524
+    // -644,584,-595
+    // -588,-843,648
+    // -30,6,44
+    // -674,560,763
+    // 500,723,-460
+    // 609,671,-379
+    // -555,-800,653
+    // -675,-892,-343
+    // 697,-426,-610
+    // 578,704,681
+    // 493,664,-388
+    // -671,-858,530
+    // -667,343,800
+    // 571,-461,-707
+    // -138,-166,112
+    // -889,563,-600
+    // 646,-828,498
+    // 640,759,510
+    // -630,509,768
+    // -681,-892,-333
+    // 673,-379,-804
+    // -742,-814,-386
+    // 577,-820,562"
+    //     )
+    // }
+    // fn get_scanner_3() -> Scanner {
+    //     Scanner::from_str(
+    //         "--- scanner 3 ---
+    // -589,542,597
+    // 605,-692,669
+    // -500,565,-823
+    // -660,373,557
+    // -458,-679,-417
+    // -488,449,543
+    // -626,468,-788
+    // 338,-750,-386
+    // 528,-832,-391
+    // 562,-778,733
+    // -938,-730,414
+    // 543,643,-506
+    // -524,371,-870
+    // 407,773,750
+    // -104,29,83
+    // 378,-903,-323
+    // -778,-728,485
+    // 426,699,580
+    // -438,-605,-362
+    // -469,-447,-387
+    // 509,732,623
+    // 647,635,-688
+    // -868,-804,481
+    // 614,-800,639
+    // 595,780,-596"
+    //     )
+    // }
+    fn get_scanner_4() -> Scanner {
+    Scanner::from_str(
+        "--- scanner 4 ---
+727,592,562
+-293,-554,779
+441,611,-461
+-714,465,-776
+-743,427,-804
+-660,-479,-426
+832,-632,460
+927,-485,-438
+408,393,-506
+466,436,-512
+110,16,151
+-258,-428,682
+-393,719,612
+-211,-452,876
+808,-476,-593
+-575,615,604
+-485,667,467
+-680,325,-822
+-627,-443,-432
+872,-547,-609
+833,512,582
+807,604,487
+839,-516,451
+891,-625,532
+-652,-548,-490
+30,-46,-14"
+    )
+}
+
+    #[test]
+    fn test_tilt_comes_around() {
+        let mut scanner = get_small_scanner();
+        let original = scanner.clone();
+        for _ in 0..4 { scanner.tilt(Axis::X) }
+        assert_eq!(scanner.beacons, original.beacons);
+
+        for _ in 0..4 { scanner.tilt(Axis::Y) }
+        assert_eq!(scanner.beacons, original.beacons);
+
+        for _ in 0..4 { scanner.tilt(Axis::Z) }
+        assert_eq!(scanner.beacons, original.beacons);
+
+        for _ in 0..4 { 
+            for _ in 0..4 {
+                scanner.tilt(Axis::Y);
+            }
+            scanner.tilt(Axis::X);            
+        }
+        assert_eq!(scanner.beacons, original.beacons);
+    }
+
+    #[test]
+    fn test_axis_comes_around() {
+        let mut scanner = get_small_scanner();
+        let original = scanner.clone();
+        for _x in 0..3 {
+            scanner.change_axis();            
+        }
+        scanner.tilt(Axis::X);
+        assert_eq!(scanner.beacons, original.beacons);
+    }
+
+    #[test] 
+    fn test_whole_rotation_comes_around() {
+        let mut scanner = get_small_scanner();
+        let original = scanner.clone();
+        for _ in 0..25 {
+            scanner.rotate();
+        }
+        assert_eq!(original.beacons, scanner.beacons);
+    }
+
+    #[test]
+    fn test_tilt_rev() {
+        let mut scanner = get_small_scanner();
+        let original = scanner.clone();
+
+        scanner.tilt(Axis::X);
+        scanner.tilt_rev(Axis::X);
+
+        assert_eq!(scanner.beacons, original.beacons);
+    }
+
+    #[test]
+    fn test_tilt_same_as_change_sign() {
+        let mut scanner01 = get_small_scanner();
+        let mut scanner02 = scanner01.clone();
+
+        scanner01.tilt(Axis::Z);
+        scanner01.tilt(Axis::Z);
+        // scanner01.tilt(Axis::X);
+        // scanner01.tilt(Axis::X);
+
+        scanner02.change_sign();
+
+        assert_eq!(scanner01.beacons, scanner02.beacons);
+    }
+
+    #[test]
+    fn test_offset() {
+        let scanner_0 = get_scanner_0();            
+        let mut scanner_1 = get_scanner_1();         
+        let offset = scanner_0.find_offset(&mut scanner_1);        
+        assert_eq!(offset.unwrap(), Coord { x: 68, y: -1246, z: -43});
+
+        let offset = offset.unwrap();
+        for beacon in scanner_1.beacons.iter_mut() {
+            *beacon += offset;
+        }
+
+        let mut scanner_4 = get_scanner_4();
+        let offset_02 = scanner_1.find_offset(&mut scanner_4);
+
+        assert_eq!(offset_02.unwrap(), Coord { x: -20, y: -1133, z: 1061 });
+    }
+
 }
