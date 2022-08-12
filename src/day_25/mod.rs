@@ -14,6 +14,7 @@ struct Map {
     height: u8
 }
 
+#[allow(dead_code)]
 impl fmt::Display for Map {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "\n")?;
@@ -42,7 +43,6 @@ impl Map {
         let first = &cucumbers[0];
         let height = cucumbers.len() as u8;
         let width = first.len() as u8;
-        println!("Height: {:?}, Width: {:?}", height, width);
         Map { cucumbers, width, height }
     }
     fn next_position(&self, cucumber: &Cucumber) -> Coordinate<u8> {
@@ -106,9 +106,6 @@ impl crate::Advent for SeaCucumber {
         let mut iteration = 0;
 
         while num_moved != 0 {            
-            if iteration % 100 == 0 {
-                println!("{} -> {}", iteration, map);
-            }
             num_moved = 0;
             let east_swaps: Vec<Vec<(Coordinate<u8>, Coordinate<u8>)>> = map.cucumbers
                 .iter()
@@ -134,9 +131,7 @@ impl crate::Advent for SeaCucumber {
                             None
                         }
                     }).collect()                  
-                }).collect();
-            
-            // println!("East swaps: {:?}", east_swaps);
+                }).collect();        
             // Move east facing cucumbers
             map.cucumbers.iter_mut().zip(east_swaps).for_each(|(row, row_swaps)| {
                 for swap in row_swaps {
@@ -177,7 +172,6 @@ impl crate::Advent for SeaCucumber {
                 }).collect();
 
             num_moved += south_swaps.len();
-            // println!("South swaps: {:?}", south_swaps);
             for swap in south_swaps {
                 let mut source = std::mem::replace(&mut map.cucumbers[swap.0.y as usize][swap.0.x as usize], None);
                 if let Some(ref mut cucumber) = source {
@@ -186,14 +180,8 @@ impl crate::Advent for SeaCucumber {
                 let destination = std::mem::replace(&mut map.cucumbers[swap.1.y as usize][swap.1.x as usize], source);
                 map.cucumbers[swap.0.y as usize][swap.0.x as usize] = destination;
             }
-
-            
-
             iteration += 1;
         }
-        
-
-        // println!("After south move: {}", self.map);
         iteration
     }
 
