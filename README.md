@@ -7,7 +7,7 @@ Run with --release flag:
  .. since some days depend on number overflowing, which raises error in development mode.
  
  To run a specific day:
-  > cargu run --release {day_number}
+  > cargo run --release {day_number}
  
  To run with example input:
   > cargo run --release {day_number} --example
