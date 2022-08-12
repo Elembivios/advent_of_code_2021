@@ -2,13 +2,14 @@ use std::cmp::{Ordering, PartialEq};
 use std::ops::Index;
 use std::fmt;
 
+#[derive(Clone, Debug)]
 pub enum Axis {
     X,
     Y
 }
 
 #[allow(dead_code)]
-#[derive(Eq, Hash, Debug)]
+#[derive(Eq, Hash, Debug, Clone)]
 pub struct Coordinate<T> {
     pub x: T,
     pub y: T
